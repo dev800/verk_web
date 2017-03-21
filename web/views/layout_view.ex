@@ -5,6 +5,10 @@ defmodule VerkWeb.LayoutView do
     static_path(conn, "#{conn.assigns[:mount_path]}#{path}")
   end
 
+  def with_mount_path(path) do
+    "#{VerkWeb.Mount.mount_path}#{path}"
+  end
+
   def menu_item(conn, path, item) do
     class = if path == conn.request_path, do: "active", else: ""
     content_tag(:li, link(item, to: path), class: class)
