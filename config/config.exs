@@ -7,7 +7,7 @@ use Mix.Config
 
 # Configures the endpoint
 config :verk_web, VerkWeb.Endpoint,
-  url: [host: "localhost"],
+  url: [],
   root: Path.dirname(__DIR__),
   render_errors: [accepts: ~w(html json)],
   pubsub: [name: VerkWeb.PubSub,
