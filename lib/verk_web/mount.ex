@@ -8,7 +8,6 @@ defmodule VerkWeb.Mount do
   defmacro __using__(_opts \\ []) do
     quote do
       path = unquote(mount_path())
-      Gialib.log_warn([__MODULE__, "__using__: ", path])
       plug VerkWeb.Plug.Mount, path
       socket "#{path}/socket", VerkWeb.UserSocket
     end
