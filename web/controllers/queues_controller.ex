@@ -24,4 +24,8 @@ defmodule VerkWeb.QueuesController do
     running_jobs = Verk.WorkersManager.running_jobs(queue)
     render conn, "busy.html", queue: queue, running_jobs: running_jobs
   end
+
+  def pause(conn, %{ "queue" => queue }) do
+    index(conn, %{})
+  end
 end
