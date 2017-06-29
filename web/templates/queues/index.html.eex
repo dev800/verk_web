@@ -4,7 +4,6 @@
   <div class="page-header clearfix">
     <h2>Queues</h2>
 
-
     <form id="queue-search" class="navbar-form navbar-left" role="search">
       <div class="form-group">
         <input type="text" name="search" class="form-control input-sm" placeholder="Search", value=<%= @search %>>
@@ -19,6 +18,7 @@
       <li><span class="swatch swatch-paused"></span>paused</li>
     </ul>
   </div>
+
   <table class="table table-blocks">
     <thead>
       <tr>
@@ -29,12 +29,12 @@
         <th>Failed</th>
         <th>Lifetime Processed</th>
         <th>Lifetime Failed</th>
-        <th>Col of no name</th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
       <%= for queue <- stats(@queue_stats) do %>
-        <tr class="queue-row <%= to_string(queue.status) %>">
+        <tr class="queue-row queue-<%= queue.queue %> <%= to_string(queue.status) %>">
           <td><%= link queue.queue, to: queues_path(@conn, :show, queue.queue) %></td>
           <td><%= link queue.running_counter |> to_string , to: queues_path(@conn, :busy, queue.queue) %></td>
           <td><%= link queue.enqueued_counter |> to_string, to: queues_path(@conn, :show, queue.queue) %></td>
@@ -42,16 +42,9 @@
           <td><%= queue.failed_counter %></td>
           <td class="lifetime"><%= queue.total_processed %></td>
           <td class="lifetime"><%= queue.total_failed %></td>
-          <td>
-
-            <%= button "Pause", to: queues_path(@conn, :pause), method: :post, data: [confirm: "Are you sure?"], form: [a: "b"], class: "btn btn-danger btn-sm" %>
-            <button type="button" class="btn btn-primary btn-xs" data-toggle="modal" data-target="#job-<%= "yo" %>-modal">
-              Pause
-            </button>
-          </td>
+          <td class="queue_control" id="queue_<%= queue.queue %>_control"><%= pause_button(@conn, queue.queue, queue.status) %></td>
         </tr>
       <% end %>
     </tbody>
   </table>
 <% end %>
-

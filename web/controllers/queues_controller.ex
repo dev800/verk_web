@@ -26,6 +26,13 @@ defmodule VerkWeb.QueuesController do
   end
 
   def pause(conn, %{ "queue" => queue }) do
-    index(conn, %{})
+    IO.puts queue
+    Verk.pause_queue(queue)
+    redirect conn, to: queues_path(conn, :index)
+  end
+
+  def resume(conn, %{ "queue" => queue }) do
+    Verk.resume_queue(queue)
+    redirect conn, to: queues_path(conn, :index)
   end
 end

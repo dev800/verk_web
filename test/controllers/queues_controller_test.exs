@@ -2,12 +2,14 @@ defmodule VerkWeb.QueuesControllerTest do
   use VerkWeb.ConnCase
   import :meck, except: [delete: 3]
   alias Verk.QueueStats
+  alias Verk
 
   @stats [%{ queue: "default", running_counter: 1,
-             finished_counter: 1, failed_counter: 0 }]
+             finished_counter: 1, failed_counter: 0, status: :running }]
 
   setup do
     new QueueStats
+    new Verk
     on_exit fn -> unload() end
     :ok
   end
@@ -40,4 +42,25 @@ defmodule VerkWeb.QueuesControllerTest do
       validate(QueueStats)
     end
   end
+
+  describe "POST /pause" do
+    test "pauses queue", %{conn: conn} do
+      queue = "default"
+      expect(Verk, :pause_queue, [queue], :ok)
+      conn = post conn, "/queues/#{queue}/pause"
+      assert redirected_to(conn) =~ "/queues"
+      validate(Verk)
+    end
+  end
+
+  describe "POST /resume" do
+    test "resumes queue", %{conn: conn} do
+      queue = "default"
+      expect(Verk, :resume_queue, [queue], :ok)
+      conn = post conn, "/queues/#{queue}/resume"
+      assert redirected_to(conn) =~ "/queues"
+      validate(Verk)
+    end
+  end
+
 end
