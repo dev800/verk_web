@@ -10988,37 +10988,52 @@ var Timer = function () {
 require.register("phoenix_html/priv/static/phoenix_html.js", function(exports, require, module) {
   require = __makeRelativeRequire(require, {}, "phoenix_html");
   (function() {
-    'use strict';
+    "use strict";
 
-function isLinkToSubmitParent(element) {
-  var isLinkTag = element.tagName === 'A';
-  var shouldSubmitParent = element.getAttribute('data-submit') === 'parent';
+(function() {
+  function buildHiddenInput(name, value) {
+    var input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value;
+    return input;
+  }
 
-  return isLinkTag && shouldSubmitParent;
-}
-
-function didHandleSubmitLinkClick(element) {
-  while (element && element.getAttribute) {
-    if (isLinkToSubmitParent(element)) {
-      var message = element.getAttribute('data-confirm');
-      if (message === null || confirm(message)) {
-        element.parentNode.submit();
-      };
-      return true;
-    } else {
-      element = element.parentNode;
+  function handleLinkClick(link) {
+    var message = link.getAttribute("data-confirm");
+    if(message && !window.confirm(message)) {
+        return;
     }
-  }
-  return false;
-}
 
-// for links with HTTP methods other than GET
-window.addEventListener('click', function (event) {
-  if (event.target && didHandleSubmitLinkClick(event.target)) {
-    event.preventDefault();
-    return false;
+    var to = link.getAttribute("data-to"),
+        method = buildHiddenInput("_method", link.getAttribute("data-method")),
+        csrf = buildHiddenInput("_csrf_token", link.getAttribute("data-csrf")),
+        form = document.createElement("form");
+
+    form.method = (link.getAttribute("data-method") === "get") ? "get" : "post";
+    form.action = to;
+    form.style.display = "hidden";
+
+    form.appendChild(csrf);
+    form.appendChild(method);
+    document.body.appendChild(form);
+    form.submit();
   }
-}, false);
+
+  window.addEventListener("click", function(e) {
+    var element = e.target;
+
+    while (element && element.getAttribute) {
+      if(element.getAttribute("data-method")) {
+        handleLinkClick(element);
+        e.preventDefault();
+        return false;
+      } else {
+        element = element.parentNode;
+      }
+    }
+  }, false);
+})();
   })();
 });
 
@@ -11036,9 +11051,10 @@ require.register("rickshaw/rickshaw.js", function(exports, require, module) {
         root.Rickshaw = factory(d3);
     }
 }(this, function (d3) {
-/* jshint -W079 */ 
+/* jshint -W079 */
 
 var Rickshaw = {
+	version: '1.6.3',
 
 	namespace: function(namespace, obj) {
 
@@ -11975,7 +11991,7 @@ Rickshaw.Fixtures.Time = function() {
 		}, {
 			name: 'minute',
 			seconds: 60,
-			formatter: function(d) { return d.getUTCMinutes() }
+			formatter: function(d) { return d.getUTCMinutes() + 'm' }
 		}, {
 			name: '15 second',
 			seconds: 15,
@@ -12185,7 +12201,7 @@ Rickshaw.Fixtures.Number.formatKMBT = function(y) {
 	else if (abs_y >= 1000000000) { return y / 1000000000 + "B" }
 	else if (abs_y >= 1000000)    { return y / 1000000 + "M" }
 	else if (abs_y >= 1000)       { return y / 1000 + "K" }
-	else if (abs_y < 1 && y > 0)  { return y.toFixed(2) }
+	else if (abs_y < 1 && abs_y > 0)  { return y.toFixed(2) }
 	else if (abs_y === 0)         { return '' }
 	else                      { return y }
 };
@@ -12197,7 +12213,7 @@ Rickshaw.Fixtures.Number.formatBase1024KMGTP = function(y) {
     else if (abs_y >= 1073741824)   { return y / 1073741824 + "G" }
     else if (abs_y >= 1048576)      { return y / 1048576 + "M" }
     else if (abs_y >= 1024)         { return y / 1024 + "K" }
-    else if (abs_y < 1 && y > 0)    { return y.toFixed(2) }
+    else if (abs_y < 1 && abs_y > 0)    { return y.toFixed(2) }
     else if (abs_y === 0)           { return '' }
     else                        { return y }
 };
@@ -13015,10 +13031,8 @@ Rickshaw.Graph.Behavior.Series.Toggle = function(args) {
 
 	if (this.legend) {
 
-		var $ = jQuery;
-		if (typeof $ != 'undefined' && $(this.legend.list).sortable) {
-
-			$(this.legend.list).sortable( {
+		if (typeof jQuery != 'undefined' && jQuery(this.legend.list).sortable) {
+			jQuery(this.legend.list).sortable( {
 				start: function(event, ui) {
 					ui.item.bind('no.onclick',
 						function(event) {
@@ -13062,6 +13076,125 @@ Rickshaw.Graph.Behavior.Series.Toggle = function(args) {
 	this.updateBehaviour = function () { this._addBehavior() };
 
 };
+Rickshaw.namespace('Rickshaw.Graph.DragZoom');
+
+Rickshaw.Graph.DragZoom = Rickshaw.Class.create({
+
+	initialize: function(args) {
+		if (!args || !args.graph) {
+			throw new Error("Rickshaw.Graph.DragZoom needs a reference to a graph");
+		}
+		var defaults = {
+			opacity: 0.5,
+			fill: 'steelblue',
+			minimumTimeSelection: 60,
+			callback: function() {}
+		};
+
+		this.graph = args.graph;
+		this.svg = d3.select(this.graph.element).select("svg");
+		this.svgWidth = parseInt(this.svg.attr("width"), 10);
+		this.opacity = args.opacity || defaults.opacity;
+		this.fill = args.fill || defaults.fill;
+		this.minimumTimeSelection = args.minimumTimeSelection || defaults.minimumTimeSelection;
+		this.callback = args.callback || defaults.callback;
+
+		this.registerMouseEvents();
+	},
+
+	registerMouseEvents: function() {
+		var self = this;
+		var ESCAPE_KEYCODE = 27;
+		var rectangle;
+
+		var drag = {
+			startDt: null,
+			stopDt: null,
+			startPX: null,
+			stopPX: null
+		};
+
+		this.svg.on("mousedown", onMousedown);
+
+		function onMouseup(datum, index) {
+			drag.stopDt = pointAsDate(d3.event);
+			var windowAfterDrag = [
+				drag.startDt,
+				drag.stopDt
+			].sort(compareNumbers);
+
+			self.graph.window.xMin = windowAfterDrag[0];
+			self.graph.window.xMax = windowAfterDrag[1];
+
+			var endTime = self.graph.window.xMax;
+			var range = self.graph.window.xMax - self.graph.window.xMin;
+
+			reset(this);
+
+			if (range < self.minimumTimeSelection || isNaN(range)) {
+				return;
+			}
+			self.graph.update();
+			self.callback({range: range, endTime: endTime});
+		}
+
+		function onMousemove() {
+			var offset = drag.stopPX = (d3.event.offsetX || d3.event.layerX);
+			if (offset > (self.svgWidth - 1) || offset < 1) {
+				return;
+			}
+
+			var limits = [drag.startPX, offset].sort(compareNumbers);
+			var selectionWidth = limits[1]-limits[0];
+			if (isNaN(selectionWidth)) {
+				return reset(this);
+			}
+			rectangle.attr("fill", self.fill)
+			.attr("x", limits[0])
+			.attr("width", selectionWidth);
+		}
+
+		function onMousedown() {
+			var el = d3.select(this);
+			rectangle = el.append("rect")
+			.style("opacity", self.opacity)
+			.attr("y", 0)
+			.attr("height", "100%");
+
+			if(d3.event.preventDefault) {
+				d3.event.preventDefault();
+			} else {
+				d3.event.returnValue = false;
+			}
+			drag.target = d3.event.target;
+			drag.startDt = pointAsDate(d3.event);
+			drag.startPX = d3.event.offsetX || d3.event.layerX;
+			el.on("mousemove", onMousemove);
+			d3.select(document).on("mouseup", onMouseup);
+			d3.select(document).on("keyup", function() {
+				if (d3.event.keyCode === ESCAPE_KEYCODE) {
+					reset(this);
+				}
+			});
+		}
+
+		function reset(el) {
+			var s = d3.select(el);
+			s.on("mousemove", null);
+			d3.select(document).on("mouseup", null);
+			drag = {};
+			rectangle.remove();
+		}
+
+		function compareNumbers(a, b) {
+			return a - b;
+		}
+
+		function pointAsDate(e) {
+			return Math.floor(self.graph.x.invert(e.offsetX || e.layerX));
+		}
+	}
+});
 Rickshaw.namespace('Rickshaw.Graph.HoverDetail');
 
 Rickshaw.Graph.HoverDetail = Rickshaw.Class.create({
@@ -13079,7 +13212,7 @@ Rickshaw.Graph.HoverDetail = Rickshaw.Class.create({
 		};
 
 		var element = this.element = document.createElement('div');
-		element.className = 'detail';
+		element.className = 'detail inactive';
 
 		this.visible = true;
 		graph.element.appendChild(element);
@@ -13109,8 +13242,8 @@ Rickshaw.Graph.HoverDetail = Rickshaw.Class.create({
 
 		var graph = this.graph;
 
-		var eventX = e.offsetX || e.layerX;
-		var eventY = e.offsetY || e.layerY;
+		var eventX = e.layerX || e.offsetX;
+		var eventY = e.layerY || e.offsetY;
 
 		var j = 0;
 		var points = [];
@@ -13317,26 +13450,43 @@ Rickshaw.Graph.HoverDetail = Rickshaw.Class.create({
 
 	_addListeners: function() {
 
+		// Keep reference for later removal.
+		this.mousemoveListener = function(e) {
+			this.visible = true;
+			this.update(e);
+		}.bind(this);
+
+		// Add listener.
 		this.graph.element.addEventListener(
 			'mousemove',
-			function(e) {
-				this.visible = true;
-				this.update(e);
-			}.bind(this),
+			this.mousemoveListener,
 			false
 		);
 
 		this.graph.onUpdate( function() { this.update() }.bind(this) );
 
+		// Keep reference for later removal.
+		this.mouseoutListener = function(e) {
+			if (e.relatedTarget && !(e.relatedTarget.compareDocumentPosition(this.graph.element) & Node.DOCUMENT_POSITION_CONTAINS)) {
+				this.hide();
+			}
+		}.bind(this);
+
+		// Add listener.
 		this.graph.element.addEventListener(
 			'mouseout',
-			function(e) {
-				if (e.relatedTarget && !(e.relatedTarget.compareDocumentPosition(this.graph.element) & Node.DOCUMENT_POSITION_CONTAINS)) {
-					this.hide();
-				}
-			}.bind(this),
+			this.mouseoutListener,
 			false
 		);
+	},
+
+	_removeListeners: function() {
+		if (this.mousemoveListener) {
+			this.graph.element.removeEventListener('mousemove', this.mousemoveListener, false);
+		}
+		if (this.mouseoutListener) {
+			this.graph.element.removeEventListener('mouseout', this.mouseoutListener, false);
+		}
 	}
 });
 Rickshaw.namespace('Rickshaw.Graph.JSONP');
@@ -13467,9 +13617,11 @@ Rickshaw.Graph.RangeSlider = Rickshaw.Class.create({
 				self.update();
 			}.bind(self));
 
-			graphs[i].onConfigure(function() {
-				$(element)[0].style.width = graphs[i].width + 'px';
-			}.bind(self));
+			(function(idx){
+				graphs[idx].onConfigure(function() {
+					$(this.element)[0].style.width = graphs[idx].width + 'px';
+				}.bind(self));
+			})(i);
 		}
 
 	},
@@ -13523,7 +13675,7 @@ Rickshaw.Graph.RangeSlider = Rickshaw.Class.create({
 		} );
 
 		graphs[0].onConfigure(function() {
-			$(element)[0].style.width = graphs[0].width + 'px';
+			$(this.element)[0].style.width = graphs[0].width + 'px';
 		}.bind(this));
 
 	},
@@ -15183,14 +15335,39 @@ require("phoenix_html");
 
 require("rickshaw");
 
-var _socket = require("./socket");
-
-var _socket2 = _interopRequireDefault(_socket);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+require("./main");
 });
 
-;require.register("web/static/js/socket.js", function(exports, require, module) {
+;require.register("web/static/js/main.js", function(exports, require, module) {
+"use strict";
+
+var _page_index = require("./page_index");
+
+var _page_index2 = _interopRequireDefault(_page_index);
+
+var _queues_index = require("./queues_index");
+
+var _queues_index2 = _interopRequireDefault(_queues_index);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var views = {
+  PageIndex: _page_index2.default, QueuesIndex: _queues_index2.default
+};
+
+function handleDOMContentLoaded() {
+  var viewName = document.getElementsByTagName('body')[0].dataset.jsViewPath;
+  var view = views[viewName];
+
+  if (view) {
+    view.init();
+  }
+}
+
+window.addEventListener('DOMContentLoaded', handleDOMContentLoaded, false);
+});
+
+require.register("web/static/js/page_index.js", function(exports, require, module) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -15209,16 +15386,14 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var App = function () {
-  function App() {
-    _classCallCheck(this, App);
+var PageIndex = function () {
+  function PageIndex() {
+    _classCallCheck(this, PageIndex);
   }
 
-  _createClass(App, null, [{
+  _createClass(PageIndex, null, [{
     key: "init",
     value: function init() {
-      var socket = new _phoenix.Socket((MOUNT_PATH || "") + "/socket");
-
       var graph = new _rickshaw2.default.Graph({
         element: document.querySelector("#graph"),
         renderer: 'area',
@@ -15244,6 +15419,7 @@ var App = function () {
         }
       });
 
+      var socket = new _phoenix.Socket(MOUNT_PATH + "/socket");
       socket.connect();
 
       var chan = socket.channel("rooms:jobs", {});
@@ -15256,18 +15432,84 @@ var App = function () {
     }
   }]);
 
-  return App;
+  return PageIndex;
 }();
 
-$(function () {
-  return App.init();
+exports.default = PageIndex;
 });
 
-exports.default = App;
+;require.register("web/static/js/queues_index.js", function(exports, require, module) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
 });
 
-;require.alias("phoenix_html/priv/static/phoenix_html.js", "phoenix_html");
-require.alias("phoenix/priv/static/phoenix.js", "phoenix");
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _phoenix = require("phoenix");
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var QueuesIndex = function () {
+  function QueuesIndex() {
+    _classCallCheck(this, QueuesIndex);
+  }
+
+  _createClass(QueuesIndex, null, [{
+    key: "init",
+    value: function init() {
+      var socket = new _phoenix.Socket(MOUNT_PATH + "/socket");
+      socket.connect();
+
+      var chan = socket.channel("rooms:queues", {});
+      chan.join();
+
+      $(".queue_control form").each(function (n, el) {
+        var form = $(el);
+        form.on("submit", function () {
+          $.post(form.attr("action"), form.serialize());
+          return false;
+        });
+      });
+
+      chan.on("queue:status", function (msg) {
+        var queue = msg["queue"],
+            status = msg["status"],
+            button = $("td#queue_" + queue + "_control button:first"),
+            form = $(button.parent()),
+            row = $("tr.queue-" + queue);
+
+        if (row.size() === 0) return;
+
+        row.removeClass("running pausing paused");
+        row.addClass(status);
+
+        if (status === "running") {
+          form.attr("action", "/queues/" + queue + "/pause");
+          button.html("Pause");
+          button.removeAttr("disabled");
+        } else if (status === "pausing") {
+          form.attr("action", "");
+          button.html("Pausing...");
+          button.attr("disabled", "disabled");
+        } else if (status === "paused") {
+          form.attr("action", "/queues/" + queue + "/resume");
+          button.html("Resume");
+          button.removeAttr("disabled");
+        }
+      });
+    }
+  }]);
+
+  return QueuesIndex;
+}();
+
+exports.default = QueuesIndex;
+});
+
+;require.alias("phoenix/priv/static/phoenix.js", "phoenix");
+require.alias("phoenix_html/priv/static/phoenix_html.js", "phoenix_html");
 require.alias("rickshaw/rickshaw.js", "rickshaw");
 require.alias("d3/d3.js", "d3");require.register("___globals___", function(exports, require, module) {
   
