@@ -6,12 +6,24 @@
 use Mix.Config
 
 # Configures the endpoint
+## config :verk_web, VerkWeb.Endpoint,
+##   url: [host: "0.0.0.0"],
+##   root: Path.dirname(__DIR__),
+##   render_errors: [accepts: ~w(html json)],
+##   pubsub: [name: VerkWeb.PubSub,
+##            adapter: Phoenix.PubSub.PG2]
+
 config :verk_web, VerkWeb.Endpoint,
-  url: [host: "localhost"],
+  url: [host: "0.0.0.0"],
   root: Path.dirname(__DIR__),
   render_errors: [accepts: ~w(html json)],
-  pubsub: [name: VerkWeb.PubSub,
-           adapter: Phoenix.PubSub.PG2]
+  pubsub: [
+    name: VerkWeb.PubSub,
+    adapter: Phoenix.PubSub.Redis,
+    url: "redis://127.0.0.1:6379/1",
+    node_name: System.get_env("NODE") || :verk_web_default
+  ]
+
 
 # Configures Elixir's Logger
 config :logger, :console,
