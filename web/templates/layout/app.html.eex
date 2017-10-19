@@ -25,11 +25,11 @@
         </div>
         <div id="page-header-nav" class="navbar-collapse collapse">
           <ul class="nav navbar-nav">
-            <%= menu_item(@conn, page_path(@conn, :index) |> with_mount_path, "Dashboard") %>
-            <%= menu_item(@conn, queues_path(@conn, :index) |> with_mount_path, "Queues") %>
-            <%= menu_item(@conn, retries_path(@conn, :index) |> with_mount_path, "Retries") %>
-            <%= menu_item(@conn, scheduled_path(@conn, :index) |> with_mount_path, "Scheduled") %>
-            <%= menu_item(@conn, dead_path(@conn, :index) |> with_mount_path, "Dead") %>
+            <%= menu_item(@conn, page_path(@conn, :index), "Dashboard") %>
+            <%= menu_item(@conn, queues_path(@conn, :index), "Queues") %>
+            <%= menu_item(@conn, retries_path(@conn, :index), "Retries") %>
+            <%= menu_item(@conn, scheduled_path(@conn, :index), "Scheduled") %>
+            <%= menu_item(@conn, dead_path(@conn, :index), "Dead") %>
           </ul>
         </div>
       </div>
