@@ -20,8 +20,14 @@ defmodule VerkWeb.Mixfile do
      deps: deps()]
   end
 
-  @default_config [http: [port: 4000], server: false,
-                   pubsub: [name: VerkWeb.PubSub, adapter: Phoenix.PubSub.PG2]]
+  @default_config [
+    http: [port: 4000],
+    server: false,
+    pubsub: [
+      name: VerkWeb.PubSub,
+      adapter: Phoenix.PubSub.PG2
+    ]
+  ]
 
   def application do
     [mod: {VerkWeb, []},
