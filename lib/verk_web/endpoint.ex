@@ -1,7 +1,9 @@
 defmodule VerkWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :verk_web
 
-  socket "/socket", VerkWeb.UserSocket
+  socket "/socket", VerkWeb.UserSocket,
+    websocket: true,
+    longpoll: true
 
   # Serve at "/" the static files from "priv/static" directory.
   #
