@@ -1,5 +1,6 @@
 defmodule VerkWeb.Plug.Mount do
   import Plug.Conn
+  require Phoenix.Router
 
   def init(default), do: default
 
