@@ -62,7 +62,7 @@ defmodule VerkWeb.Mixfile do
 
       {:gettext, "~> 0.9"},
       {:verk, "~> 1.1"},
-      {:cowboy, "~> 1.0"},
+      {:cowboy, "~> 1.0 or ~> 2.3"},
       {:basic_auth, "~> 2.0"},
       {:earmark, "~> 1.0", only: :dev},
       {:ex_doc, "~> 0.13", only: :dev},
