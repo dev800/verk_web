@@ -2,14 +2,14 @@ defmodule VerkWeb.Mixfile do
   use Mix.Project
 
   @description """
-    A Verk dashboard
+  A Verk dashboard
   """
 
   def project do
     [
       app: :verk_web,
-      version: "1.3.0",
-      elixir: "~> 1.3",
+      version: "1.4.2",
+      elixir: "~> 1.5",
       elixirc_paths: elixirc_paths(Mix.env()),
       compilers: [:phoenix, :gettext] ++ Mix.compilers(),
       build_embedded: Mix.env() == :prod,
@@ -59,16 +59,15 @@ defmodule VerkWeb.Mixfile do
       {:phoenix_html, github: "phoenixframework/phoenix_html", override: true},
       {:phoenix_pubsub, github: "phoenixframework/phoenix_pubsub", override: true},
       {:phoenix_live_reload, github: "phoenixframework/phoenix_live_reload", only: :dev},
-
-      {:gettext, "~> 0.9"},
+      {:gettext, "~> 0.16"},
       {:verk, "~> 1.1"},
-      {:cowboy, "~> 1.0 or ~> 2.3"},
+      {:cowboy, "~> 1.0"},
       {:basic_auth, "~> 2.0"},
       {:earmark, "~> 1.0", only: :dev},
       {:ex_doc, "~> 0.13", only: :dev},
       {:coverex, "~> 1.4", only: :test},
       {:meck, "~> 0.8", only: :test},
-      {:timex, "~> 3.1.0"}
+      {:timex, "~> 3.3.0"}
     ]
   end
 
